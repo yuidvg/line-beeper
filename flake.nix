@@ -3,53 +3,71 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
-    flake-utils.url = "github:numtide/flake-utils";
+    colmena.url = "github:zhaofengli/colmena";
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = { self, nixpkgs, flake-utils, sops-nix }:
+  outputs = { self, nixpkgs, colmena, sops-nix, ... }:
     let
-      system = "aarch64-linux";  # ARM for t4g instances
-      pkgs = import nixpkgs { inherit system; };
+      targetSystem = "aarch64-linux";
+      localSystem = "x86_64-linux";
+      
+      pkgs = import nixpkgs { system = localSystem; };
+      
+      commonModules = [
+        sops-nix.nixosModules.sops
+        ./nix/modules/hardware-aws.nix
+        ./nix/modules/synapse.nix
+        ./nix/modules/matrix-puppeteer-line.nix
+      ];
     in
     {
-      # NixOS configuration for the server
+      # Colmena hive - stateless deployment
+      colmenaHive = colmena.lib.makeHive {
+        meta = {
+          nixpkgs = import nixpkgs { system = targetSystem; };
+          specialArgs = { inherit self; };
+        };
+
+        defaults = { ... }: {
+          imports = commonModules;
+        };
+
+        line-beeper = { name, nodes, pkgs, ... }: {
+          deployment = {
+            # targetHost is overridden via CLI: --override-input-host
+            targetHost = "OVERRIDE_VIA_CLI";
+            targetUser = "root";
+            buildOnTarget = true;  # Build on ARM target, not local x86
+          };
+        };
+      };
+
+      # NixOS configuration (for nixos-rebuild fallback)
       nixosConfigurations.line-beeper = nixpkgs.lib.nixosSystem {
-        inherit system;
-        modules = [
-          sops-nix.nixosModules.sops
-          ./nix/modules/hardware-aws.nix
-          ./nix/modules/synapse.nix
-          ./nix/modules/matrix-puppeteer-line.nix
-        ];
+        system = targetSystem;
+        modules = commonModules;
         specialArgs = { inherit self; };
       };
 
-      # Packages
-      packages.${system} = {
-        matrix-puppeteer-line = pkgs.callPackage ./nix/packages/matrix-puppeteer-line.nix { };
-        matrix-puppeteer-line-chrome = pkgs.callPackage ./nix/packages/matrix-puppeteer-line-chrome.nix { };
-      };
-
-      # Dev shell for local development (x86_64 for local machine)
-      devShells.x86_64-linux.default = let
-        devPkgs = import nixpkgs { system = "x86_64-linux"; };
-      in devPkgs.mkShell {
-        buildInputs = with devPkgs; [
+      # Dev shell
+      devShells.${localSystem}.default = pkgs.mkShell {
+        buildInputs = with pkgs; [
           terraform
           awscli2
+          colmena.packages.${localSystem}.colmena
           sops
-          age
+          jq
         ];
 
         shellHook = ''
-          echo "LINE-Beeper development environment"
-          echo "Commands:"
-          echo "  terraform -chdir=terraform init/plan/apply"
-          echo "  sops secrets/secrets.yaml"
+          echo "LINE-Beeper dev environment"
+          echo "  make deploy  - Full deployment"
+          echo "  make infra   - Infrastructure only"
+          echo "  make nixos   - NixOS config only"
         '';
       };
     };
