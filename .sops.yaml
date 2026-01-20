@@ -1,7 +1,3 @@
-# SOPS configuration
-# Replace KMS_KEY_ARN with actual ARN from terraform output
-
 creation_rules:
-  # Secrets for production
   - path_regex: secrets/.*\.yaml$
     kms: "arn:aws:kms:ap-northeast-1:481315299958:key/c03ee0a5-f9cc-4904-9de8-26866d39ab8f"
