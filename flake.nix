@@ -12,7 +12,7 @@
 
   outputs = { self, nixpkgs, flake-utils, sops-nix }:
     let
-      system = "x86_64-linux";
+      system = "aarch64-linux";  # ARM for t4g instances
       pkgs = import nixpkgs { inherit system; };
     in
     {
@@ -34,9 +34,11 @@
         matrix-puppeteer-line-chrome = pkgs.callPackage ./nix/packages/matrix-puppeteer-line-chrome.nix { };
       };
 
-      # Dev shell for local development
-      devShells.${system}.default = pkgs.mkShell {
-        buildInputs = with pkgs; [
+      # Dev shell for local development (x86_64 for local machine)
+      devShells.x86_64-linux.default = let
+        devPkgs = import nixpkgs { system = "x86_64-linux"; };
+      in devPkgs.mkShell {
+        buildInputs = with devPkgs; [
           terraform
           awscli2
           sops

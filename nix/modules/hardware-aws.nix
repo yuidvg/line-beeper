@@ -5,18 +5,6 @@
     "${modulesPath}/virtualisation/amazon-image.nix"
   ];
 
-  # EC2 specific settings
-  ec2.hvm = true;
-
-  # Boot
-  boot.loader.grub.device = lib.mkForce "/dev/xvda";
-
-  # Filesystem
-  fileSystems."/" = {
-    device = "/dev/xvda1";
-    fsType = "ext4";
-  };
-
   # Networking
   networking = {
     hostName = "line-beeper";
@@ -49,6 +37,17 @@
     htop
     git
   ];
+
+  # Enable line-beeper service
+  services.line-beeper = {
+    enable = true;
+    domain = "yuidvg.click";
+    acmeEmail = "student-earful.9r@icloud.com";
+  };
+
+  # SOPS - use AWS KMS via instance role
+  sops.age.sshKeyPaths = [];
+  sops.gnupg.sshKeyPaths = [];
 
   system.stateVersion = "24.05";
 }

@@ -10,17 +10,13 @@ in
     domain = lib.mkOption {
       type = lib.types.str;
       description = "Matrix server domain";
-      example = "matrix.example.com";
-    };
-
-    dbHost = lib.mkOption {
-      type = lib.types.str;
-      description = "PostgreSQL host (RDS endpoint)";
+      example = "yuidvg.click";
     };
 
     acmeEmail = lib.mkOption {
       type = lib.types.str;
       description = "Email for Let's Encrypt";
+      default = "admin@example.com";
     };
   };
 
@@ -30,10 +26,6 @@ in
       defaultSopsFile = ../../secrets/secrets.yaml;
       
       secrets = {
-        "db_password" = {
-          owner = "matrix-synapse";
-          group = "matrix-synapse";
-        };
         "matrix_registration_shared_secret" = {
           owner = "matrix-synapse";
           group = "matrix-synapse";
@@ -41,7 +33,7 @@ in
       };
     };
 
-    # Matrix Synapse
+    # Matrix Synapse with SQLite
     services.matrix-synapse = {
       enable = true;
       settings = {
@@ -64,28 +56,21 @@ in
           }
         ];
 
+        # SQLite database (default, no config needed)
         database = {
-          name = "psycopg2";
+          name = "sqlite3";
           args = {
-            host = cfg.dbHost;
-            database = "synapse";
-            user = "synapse";
-            cp_min = 5;
-            cp_max = 10;
+            database = "/var/lib/matrix-synapse/homeserver.db";
           };
         };
 
-        # Federation
         enable_registration = false;
         allow_guest_access = false;
 
-        # App services (bridge)
-        app_service_config_files = [
-          "/var/lib/matrix-synapse/line-registration.yaml"
-        ];
+        # App services (bridge) - will be added later
+        # app_service_config_files = [];
       };
 
-      # Extra config file for secrets
       extraConfigFiles = [
         "/run/secrets/synapse-extra-config"
       ];
@@ -95,9 +80,6 @@ in
     sops.templates."synapse-extra-config" = {
       owner = "matrix-synapse";
       content = ''
-        database:
-          args:
-            password: "${config.sops.placeholder."db_password"}"
         registration_shared_secret: "${config.sops.placeholder."matrix_registration_shared_secret"}"
       '';
     };
@@ -142,13 +124,7 @@ in
       defaults.email = cfg.acmeEmail;
     };
 
-    # Ensure synapse restarts when secrets change
-    systemd.services.matrix-synapse = {
-      serviceConfig = {
-        ExecStartPre = [
-          "${pkgs.coreutils}/bin/sleep 2"  # Wait for secrets
-        ];
-      };
-    };
+    # Firewall
+    networking.firewall.allowedTCPPorts = [ 80 443 ];
   };
 }
