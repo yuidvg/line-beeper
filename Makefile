@@ -1,6 +1,6 @@
 .PHONY: deploy infra nixos init plan destroy clean ssh status
 
-# Default SSH key path (override with SSH_KEY=path)
+# SSH key path (override with SSH_KEY=path)
 SSH_KEY ?= ~/.ssh/line-beeper
 
 # Full deployment: infrastructure + NixOS configuration
@@ -23,34 +23,26 @@ infra: init
 	@echo "Waiting 30s for instance to initialize..."
 	@sleep 30
 
-# Deploy NixOS configuration via Colmena
-# Colmena is stateless - safe to run multiple times
+# Deploy NixOS configuration
+# Builds on remote ARM host, then switches
 nixos:
 	@IP=$$(cd terraform && terraform output -raw instance_public_ip 2>/dev/null); \
 	if [ -z "$$IP" ]; then \
 		echo "Error: No instance IP found. Run 'make infra' first."; \
 		exit 1; \
 	fi; \
-	echo "Deploying NixOS to $$IP..."; \
+	echo "Deploying NixOS to $$IP (building on remote)..."; \
 	NIX_SSHOPTS="-o StrictHostKeyChecking=no -i $(SSH_KEY)" \
-	nix run github:zhaofengli/colmena -- apply \
-		--on line-beeper \
-		--evaluator streaming \
-		--override-input-host line-beeper $$IP
-
-# Alternative: nixos-rebuild (if Colmena has issues)
-nixos-rebuild:
-	@IP=$$(cd terraform && terraform output -raw instance_public_ip); \
-	NIX_SSHOPTS="-o StrictHostKeyChecking=no -i $(SSH_KEY)" \
-	nixos-rebuild switch --flake .#line-beeper \
+	nix run nixpkgs#nixos-rebuild -- switch \
+		--flake .#line-beeper \
 		--target-host root@$$IP \
-		--build-host localhost
+		--build-host root@$$IP
 
 # Destroy all infrastructure
 destroy:
 	cd terraform && terraform destroy -auto-approve
 
-# Clean local state (Terraform state is remote, this cleans local cache)
+# Clean local cache
 clean:
 	rm -rf terraform/.terraform
 	rm -f terraform/.terraform.lock.hcl
@@ -69,5 +61,5 @@ status:
 	@IP=$$(cd terraform && terraform output -raw instance_public_ip 2>/dev/null); \
 	if [ -n "$$IP" ]; then \
 		ssh -o ConnectTimeout=5 -i $(SSH_KEY) root@$$IP \
-			"systemctl status matrix-synapse --no-pager" 2>/dev/null || echo "Cannot connect"; \
+			"systemctl status matrix-synapse nginx --no-pager" 2>/dev/null || echo "Cannot connect"; \
 	fi
