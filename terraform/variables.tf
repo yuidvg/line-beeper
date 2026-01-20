@@ -5,26 +5,8 @@ variable "aws_region" {
 }
 
 variable "domain" {
-  description = "Domain for Matrix server (e.g., matrix.example.com)"
+  description = "Domain for Matrix server"
   type        = string
-}
-
-variable "instance_type" {
-  description = "EC2 instance type"
-  type        = string
-  default     = "t3.small"
-}
-
-variable "db_instance_class" {
-  description = "RDS instance class"
-  type        = string
-  default     = "db.t3.micro"
-}
-
-variable "db_password" {
-  description = "PostgreSQL password for Synapse"
-  type        = string
-  sensitive   = true
 }
 
 variable "ssh_public_key" {

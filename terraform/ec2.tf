@@ -1,16 +1,16 @@
-# NixOS AMI (official)
+# NixOS AMI (official ARM)
 data "aws_ami" "nixos" {
   most_recent = true
   owners      = ["427812963091"] # NixOS official
 
   filter {
     name   = "name"
-    values = ["nixos/24.05*"]
+    values = ["nixos/25.05*-aarch64-linux"]
   }
 
   filter {
     name   = "architecture"
-    values = ["x86_64"]
+    values = ["arm64"]
   }
 }
 
@@ -21,7 +21,7 @@ resource "aws_key_pair" "main" {
 
 resource "aws_instance" "matrix" {
   ami                    = data.aws_ami.nixos.id
-  instance_type          = var.instance_type
+  instance_type          = "t4g.small"
   key_name               = aws_key_pair.main.key_name
   vpc_security_group_ids = [aws_security_group.matrix.id]
   subnet_id              = aws_subnet.public.id
@@ -36,10 +36,8 @@ resource "aws_instance" "matrix" {
     Name = "line-beeper-matrix"
   }
 
-  # User data to bootstrap NixOS configuration
   user_data = <<-EOF
     #!/run/current-system/sw/bin/bash
-    # Initial setup - actual config deployed via nixos-rebuild
     echo "NixOS instance ready for configuration"
   EOF
 }
