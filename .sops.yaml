@@ -1,0 +1,7 @@
+# SOPS configuration
+# Replace KMS_KEY_ARN with actual ARN from terraform output
+
+creation_rules:
+  # Secrets for production
+  - path_regex: secrets/.*\.yaml$
+    kms: "arn:aws:kms:ap-northeast-1:ACCOUNT_ID:alias/line-beeper-sops"
