@@ -53,6 +53,22 @@
         "type": "github"
       }
     },
+    "matrix-puppeteer-line": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1648536651,
+        "narHash": "sha256-RSqX2A6GWyTJGWC0VTbcHkEiS/L0T7xiVYhhr6WgQZY=",
+        "ref": "refs/heads/master",
+        "rev": "d9c3b0f01b7dd48c40fd78a94dc77bded4b5e7aa",
+        "revCount": 193,
+        "type": "git",
+        "url": "https://src.miscworks.net/fair/matrix-puppeteer-line"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://src.miscworks.net/fair/matrix-puppeteer-line"
+      }
+    },
     "nix-github-actions": {
       "inputs": {
         "nixpkgs": [
@@ -109,6 +125,7 @@
     "root": {
       "inputs": {
         "colmena": "colmena",
+        "matrix-puppeteer-line": "matrix-puppeteer-line",
         "nixpkgs": "nixpkgs_2",
         "sops-nix": "sops-nix"
       }
