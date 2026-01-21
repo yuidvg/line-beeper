@@ -2,7 +2,7 @@
   description = "LINE-Beeper: Matrix Synapse + LINE bridge on AWS";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
     colmena.url = "github:zhaofengli/colmena";
     sops-nix = {
       url = "github:Mic92/sops-nix";
@@ -80,7 +80,7 @@
           }:
           {
             deployment = {
-              targetHost = builtins.readFile ./target-host.txt;
+              targetHost = builtins.getEnv "TARGET_HOST";
               targetUser = "root";
               buildOnTarget = true;
             };

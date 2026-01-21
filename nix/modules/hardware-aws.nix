@@ -1,4 +1,10 @@
-{ config, lib, pkgs, modulesPath, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  modulesPath,
+  ...
+}:
 
 {
   imports = [
@@ -11,10 +17,10 @@
     firewall = {
       enable = true;
       allowedTCPPorts = [
-        22    # SSH
-        80    # HTTP (ACME)
-        443   # HTTPS
-        8448  # Matrix federation
+        22 # SSH
+        80 # HTTP (ACME)
+        443 # HTTPS
+        8448 # Matrix federation
       ];
     };
   };
@@ -45,9 +51,10 @@
     acmeEmail = "student-earful.9r@icloud.com";
   };
 
-  # SOPS - use AWS KMS via instance role
-  sops.age.sshKeyPaths = [];
-  sops.gnupg.sshKeyPaths = [];
+  # SOPS - secrets will be decrypted on the host
+  sops.defaultSopsFile = ../../secrets/secrets.yaml;
+  sops.secrets.matrix_registration_shared_secret = { };
+  sops.secrets.line_bridge_secret = { };
 
   system.stateVersion = "24.05";
 }

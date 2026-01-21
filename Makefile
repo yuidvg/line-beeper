@@ -31,8 +31,7 @@ nixos:
 		exit 1; \
 	fi; \
 	echo "Deploying NixOS to $$IP via Colmena..."; \
-	echo "$$IP" > target-host.txt; \
-	colmena apply --on line-beeper
+	TARGET_HOST=$$IP colmena apply --on line-beeper --impure
 
 # Destroy all infrastructure
 destroy:

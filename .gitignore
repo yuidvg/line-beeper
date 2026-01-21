@@ -8,7 +8,6 @@ terraform/.terraform.lock.hcl
 # Nix
 result
 result-*
-target-host.txt
 
 # Secrets (unencrypted)
 *.dec.yaml
