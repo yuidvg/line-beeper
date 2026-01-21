@@ -51,6 +51,8 @@
     acmeEmail = "student-earful.9r@icloud.com";
   };
 
+  services.matrix-puppeteer-line.enable = true;
+
   # SOPS - secrets will be decrypted on the host
   sops.defaultSopsFile = ../../secrets/secrets.yaml;
   sops.secrets.matrix_registration_shared_secret = { };

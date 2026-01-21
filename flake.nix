@@ -8,6 +8,10 @@
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    matrix-puppeteer-line = {
+      url = "git+https://src.miscworks.net/fair/matrix-puppeteer-line";
+      flake = false;
+    };
   };
 
   outputs =
@@ -16,6 +20,7 @@
       nixpkgs,
       colmena,
       sops-nix,
+      matrix-puppeteer-line,
       ...
     }:
     let
@@ -39,6 +44,13 @@
           pkgs = import nixpkgs {
             inherit system;
             config.allowUnfree = true;
+            overlays = [
+              (final: prev: {
+                matrix-puppeteer-line = final.callPackage ./nix/pkgs/matrix-puppeteer-line {
+                  src = matrix-puppeteer-line.outPath;
+                };
+              })
+            ];
           };
         in
         pkgs.mkShell {
@@ -61,7 +73,17 @@
       # Colmena hive - stateless deployment
       colmenaHive = colmena.lib.makeHive {
         meta = {
-          nixpkgs = import nixpkgs { system = targetSystem; };
+          nixpkgs = import nixpkgs {
+            system = targetSystem;
+            config.allowUnfree = true;
+            overlays = [
+              (final: prev: {
+                matrix-puppeteer-line = final.callPackage ./nix/pkgs/matrix-puppeteer-line {
+                  src = matrix-puppeteer-line.outPath;
+                };
+              })
+            ];
+          };
           specialArgs = { inherit self; };
         };
 
