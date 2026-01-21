@@ -35,6 +35,7 @@ in
           owner = "matrix-synapse";
           group = "matrix-synapse";
         };
+        "admin_password" = { };
       };
     };
 
@@ -137,5 +138,55 @@ in
       80
       443
     ];
+
+    # Idempotent Admin User Creation
+    systemd.services.matrix-synapse-register-admin = {
+      description = "Register Matrix admin user idempotently";
+      after = [ "matrix-synapse.service" ];
+      wants = [ "matrix-synapse.service" ];
+      wantedBy = [ "multi-user.target" ];
+
+      serviceConfig = {
+        Type = "oneshot";
+        User = "root";
+      };
+
+      script = ''
+        # Wait for Synapse
+        until ${pkgs.curl}/bin/curl -sf http://127.0.0.1:8008/health; do
+          echo "Waiting for synapse..."
+          sleep 5
+        done
+
+        ADMIN_PASS=$(cat ${config.sops.secrets."admin_password".path})
+        SHARED_SECRET=$(cat ${config.sops.secrets."matrix_registration_shared_secret".path})
+
+        # Create temp config for register tool
+        CONF_FILE="/tmp/matrix-reg-config.yaml"
+        echo "registration_shared_secret: $SHARED_SECRET" > "$CONF_FILE"
+        chmod 600 "$CONF_FILE"
+
+        # Attempt registration
+        OUTPUT=$(${pkgs.matrix-synapse}/bin/register_new_matrix_user \
+          -u admin \
+          -p "$ADMIN_PASS" \
+          -a \
+          -c "$CONF_FILE" \
+          http://127.0.0.1:8008 2>&1)
+        RET=$?
+
+        rm "$CONF_FILE"
+
+        if [ $RET -eq 0 ]; then
+          echo "Admin user created successfully."
+        elif echo "$OUTPUT" | grep -q "User ID already taken"; then
+          echo "Admin user already exists. Skipping."
+        else
+          echo "Failed to create admin user:"
+          echo "$OUTPUT"
+          exit 1
+        fi
+      '';
+    };
   };
 }
