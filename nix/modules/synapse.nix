@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   cfg = config.services.line-beeper;
@@ -24,7 +29,7 @@ in
     # SOPS secrets
     sops = {
       defaultSopsFile = ../../secrets/secrets.yaml;
-      
+
       secrets = {
         "matrix_registration_shared_secret" = {
           owner = "matrix-synapse";
@@ -49,7 +54,10 @@ in
             x_forwarded = true;
             resources = [
               {
-                names = [ "client" "federation" ];
+                names = [
+                  "client"
+                  "federation"
+                ];
                 compress = true;
               }
             ];
@@ -72,7 +80,7 @@ in
       };
 
       extraConfigFiles = [
-        "/run/secrets/synapse-extra-config"
+        config.sops.templates."synapse-extra-config".path
       ];
     };
 
@@ -125,6 +133,9 @@ in
     };
 
     # Firewall
-    networking.firewall.allowedTCPPorts = [ 80 443 ];
+    networking.firewall.allowedTCPPorts = [
+      80
+      443
+    ];
   };
 }
