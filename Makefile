@@ -1,7 +1,7 @@
 .PHONY: deploy infra nixos init plan destroy clean ssh status
 
 # SSH key path (override with SSH_KEY=path)
-SSH_KEY ?= ~/.ssh/line-beeper
+SSH_KEY ?= ~/.ssh/line-beeper-yui-macbook-pro-m3max
 
 # Full deployment: infrastructure + NixOS configuration
 deploy: infra nixos
