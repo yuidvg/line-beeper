@@ -1,0 +1,13 @@
+{
+	"listen": {
+		"type": "unix",
+		"path": "/var/run/matrix-puppeteer-line/puppet.sock"
+	},
+	"executable_path": "",
+	"profile_dir": "./profiles",
+	"extension_dir": "./extension_files",
+	"cycle_delay": 5000,
+	"use_xdotool": false,
+	"jiggle_delay": 20000,
+	"devtools": false
+}
