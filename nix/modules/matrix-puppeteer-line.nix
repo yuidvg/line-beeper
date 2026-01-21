@@ -11,8 +11,14 @@ let
   cfg = config.services.matrix-puppeteer-line;
   pkg = pkgs.matrix-puppeteer-line;
   puppetPkg = pkg.puppet;
+  pythonEnv = pkgs.python3.withPackages (ps: [ pkg ]);
 
   configFile = pkgs.writeText "matrix-puppeteer-line-config.yaml" ''
+    homeserver:
+        address: http://localhost:8008
+        domain: yuidvg.click
+        verify_ssl: false
+
     appservice:
         address: http://localhost:${toString cfg.port}
         hostname: 0.0.0.0
@@ -141,7 +147,7 @@ in
       ensureUsers = [
         {
           name = "matrix-puppeteer-line";
-          # No passwordFile, using peer auth
+          ensureDBOwnership = true;
         }
       ];
       ensureDatabases = [ "matrix-puppeteer-line" ];
@@ -166,37 +172,65 @@ in
       serviceConfig = {
         User = "matrix-puppeteer-line";
         Group = "matrix-puppeteer-line";
-        WorkingDirectory = "/var/lib/matrix-puppeteer-line/puppet";
+        WorkingDirectory = "/var/lib/matrix-puppeteer-line";
         RuntimeDirectory = "matrix-puppeteer-line";
 
         # Setup symlinks for read-only source files
         ExecStartPre = pkgs.writeShellScript "setup-puppet" ''
-          mkdir -p /var/lib/matrix-puppeteer-line/puppet
-          cd /var/lib/matrix-puppeteer-line/puppet
+          mkdir -p puppet
 
           # Link src directory
-          rm -rf src
-          ln -sf ${puppetPkg}/libexec/matrix-puppeteer-line/deps/matrix-puppeteer-line/puppet/src src
+          rm -rf puppet/src
+          ln -sf ${puppetPkg}/libexec/matrix-puppeteer-line-chrome/deps/matrix-puppeteer-line-chrome/src puppet/src
 
           # Link node_modules
-          rm -rf node_modules
-          ln -sf ${puppetPkg}/libexec/matrix-puppeteer-line/deps/matrix-puppeteer-line/puppet/node_modules node_modules
+          rm -rf puppet/node_modules
+          ln -sf ${puppetPkg}/libexec/matrix-puppeteer-line-chrome/deps/matrix-puppeteer-line-chrome/node_modules puppet/node_modules
 
           # Copy package.json just in case
-          rm -f package.json
-          cp ${puppetPkg}/libexec/matrix-puppeteer-line/deps/matrix-puppeteer-line/puppet/package.json .
+          rm -f puppet/package.json
+          cp ${puppetPkg}/libexec/matrix-puppeteer-line-chrome/deps/matrix-puppeteer-line-chrome/package.json puppet/
         '';
 
-        ExecStart = "${pkgs.xvfb-run}/bin/xvfb-run -a ${pkgs.nodejs}/bin/node src/main.js --config ${puppetConfigFile}";
+        ExecStart = pkgs.writeShellScript "run-puppet" ''
+          cd puppet
+          exec ${pkgs.xvfb-run}/bin/xvfb-run -a ${pkgs.nodejs}/bin/node src/main.js --config ${puppetConfigFile}
+        '';
         Restart = "on-failure";
         RestartSec = 3;
       };
 
       environment = {
         # Ensure Puppeteer finds the bundled node_modules
-        NODE_PATH = "${puppetPkg}/libexec/matrix-puppeteer-line/deps/matrix-puppeteer-line/puppet/node_modules";
+        NODE_PATH = "${puppetPkg}/libexec/matrix-puppeteer-line-chrome/deps/matrix-puppeteer-line-chrome/node_modules";
         PUPPETEER_EXECUTABLE_PATH = "${pkgs.chromium}/bin/chromium";
       };
+    };
+
+    # Registration Service (Oneshot, before Synapse)
+    systemd.services.matrix-puppeteer-line-registration = {
+      description = "Generate matrix-puppeteer-line registration file";
+      requiredBy = [ "matrix-synapse.service" ];
+      before = [ "matrix-synapse.service" ];
+
+      serviceConfig = {
+        Type = "oneshot";
+        User = "matrix-puppeteer-line";
+        Group = "matrix-puppeteer-line";
+        SupplementaryGroups = [ "matrix-synapse" ];
+        StateDirectory = "matrix-puppeteer-line";
+        WorkingDirectory = "/var/lib/matrix-puppeteer-line";
+        RuntimeDirectory = "matrix-puppeteer-line";
+      };
+
+      script = ''
+        export MATRIX_REGISTRATION_SHARED_SECRET=$(cat /run/secrets/matrix_registration_shared_secret)
+        ${pkgs.gettext}/bin/envsubst < ${configFile} > config.yaml
+
+        if [ ! -f registration.yaml ]; then
+          ${pythonEnv}/bin/python3 -m matrix_puppeteer_line -g -c config.yaml -r registration.yaml
+        fi
+      '';
     };
 
     # Systemd Service - Python (Main)
@@ -206,52 +240,53 @@ in
       requires = [
         "matrix-puppeteer-line-chrome.service"
         "postgresql.service"
+        "matrix-synapse.service"
       ];
       after = [
         "matrix-puppeteer-line-chrome.service"
         "postgresql.service"
+        "matrix-synapse.service"
+      ];
+      path = with pkgs; [
+        coreutils
+        gnugrep
+        gawk
+        gnused
       ];
 
       serviceConfig = {
         User = "matrix-puppeteer-line";
         Group = "matrix-puppeteer-line";
+        SupplementaryGroups = [ "matrix-synapse" ]; # For reading secrets
         StateDirectory = "matrix-puppeteer-line";
         WorkingDirectory = "/var/lib/matrix-puppeteer-line";
-        RuntimeDirectory = "matrix-puppeteer-line";
         RequiresMountsFor = "/var/lib/matrix-puppeteer-line";
       };
 
       script = ''
-        # Ensure configuration
         export MATRIX_REGISTRATION_SHARED_SECRET=$(cat /run/secrets/matrix_registration_shared_secret)
-
         ${pkgs.gettext}/bin/envsubst < ${configFile} > config.yaml
 
-        # Generate registration if missing
-        if [ ! -f registration.yaml ]; then
-          ${pkg}/bin/matrix-puppeteer-line -g -c config.yaml -r registration.yaml
-          # Force restart Synapse on new registration?
-          # Or trust that colmena will restart synapse if app_service_config_files changed?
-          # The file content is dynamic, so nix doesn't know.
-          # We might need to restart manually once.
-        else
-          # Update tokens in config.yaml from existing registration.yaml
+        # Ensure registration exists (should be done by registration service, but good to check)
+        # Update tokens in config.yaml from existing registration.yaml
+        if [ -f registration.yaml ]; then
           AS_TOKEN=$(grep 'as_token:' registration.yaml | awk '{print $2}' | tr -d '"')
           HS_TOKEN=$(grep 'hs_token:' registration.yaml | awk '{print $2}' | tr -d '"')
 
-          # Use temp file for sed to avoid issues
           sed "s/{AS_TOKEN}/$AS_TOKEN/" config.yaml > config.yaml.tmp && mv config.yaml.tmp config.yaml
           sed "s/{HS_TOKEN}/$HS_TOKEN/" config.yaml > config.yaml.tmp && mv config.yaml.tmp config.yaml
         fi
 
-        # Run
-        exec ${pkg}/bin/matrix-puppeteer-line -c config.yaml
+        exec ${pythonEnv}/bin/python3 -m matrix_puppeteer_line -c config.yaml
       '';
     };
+
+    users.groups.matrix-synapse.members = [ "matrix-puppeteer-line" ];
 
     users.users.matrix-puppeteer-line = {
       isSystemUser = true;
       group = "matrix-puppeteer-line";
+      extraGroups = [ "matrix-synapse" ];
       home = "/var/lib/matrix-puppeteer-line";
       createHome = true;
     };

@@ -1,5 +1,5 @@
 {
-  pkgs,
+
   fetchYarnDeps,
   mkYarnPackage,
   src,
@@ -7,7 +7,7 @@
 
 mkYarnPackage {
   name = "matrix-puppeteer-line-puppet";
-  src = "${src}/puppet";
+  src = ../../../src/matrix-puppeteer-line/puppet;
 
   packageJSON = ./package.json;
   yarnLock = ./yarn.lock;

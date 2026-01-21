@@ -144,7 +144,7 @@ in
       description = "Register Matrix admin user idempotently";
       after = [ "matrix-synapse.service" ];
       wants = [ "matrix-synapse.service" ];
-      # wantedBy = [ "multi-user.target" ]; # Disabled temporarily to fix deployment
+      # wantedBy = [ "multi-user.target" ];
 
       serviceConfig = {
         Type = "oneshot";

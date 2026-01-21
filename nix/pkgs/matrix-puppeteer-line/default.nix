@@ -33,13 +33,14 @@ let
   };
 
 in
-python3Packages.buildPythonApplication {
+python3Packages.buildPythonPackage {
   pname = "matrix-puppeteer-line";
   version = "0.0.1-git";
 
-  inherit src;
+  src = ../../../src/matrix-puppeteer-line;
 
   propagatedBuildInputs = with python3Packages; [
+    setuptools
     ruamel-yaml
     python-magic
     commonmark
@@ -62,6 +63,7 @@ python3Packages.buildPythonApplication {
 
   meta = with lib; {
     description = "Matrix <-> LINE bridge";
+    src = ../../../src/matrix-puppeteer-line;
     homepage = "https://github.com/fair/matrix-puppeteer-line";
     license = licenses.agpl3Only;
     maintainers = [ ];

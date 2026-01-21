@@ -55,7 +55,11 @@
 
   # SOPS - secrets will be decrypted on the host
   sops.defaultSopsFile = ../../secrets/secrets.yaml;
-  sops.secrets.matrix_registration_shared_secret = { };
+  sops.secrets.matrix_registration_shared_secret = {
+    owner = "matrix-synapse";
+    group = "matrix-synapse";
+    mode = "0440";
+  };
   sops.secrets.line_bridge_secret = { };
 
   system.stateVersion = "24.05";
