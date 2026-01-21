@@ -23,20 +23,16 @@ infra: init
 	@echo "Waiting 30s for instance to initialize..."
 	@sleep 30
 
-# Deploy NixOS configuration
-# Builds on remote ARM host, then switches
+# Deploy NixOS configuration via Colmena (builds on ARM target)
 nixos:
 	@IP=$$(cd terraform && terraform output -raw instance_public_ip 2>/dev/null); \
 	if [ -z "$$IP" ]; then \
 		echo "Error: No instance IP found. Run 'make infra' first."; \
 		exit 1; \
 	fi; \
-	echo "Deploying NixOS to $$IP (building on remote)..."; \
-	NIX_SSHOPTS="-o StrictHostKeyChecking=no -i $(SSH_KEY)" \
-	nix run nixpkgs#nixos-rebuild -- switch \
-		--flake .#line-beeper \
-		--target-host root@$$IP \
-		--build-host root@$$IP
+	echo "Deploying NixOS to $$IP via Colmena..."; \
+	echo "$$IP" > target-host.txt; \
+	colmena apply --on line-beeper
 
 # Destroy all infrastructure
 destroy:

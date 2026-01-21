@@ -10,13 +10,20 @@
     };
   };
 
-  outputs = { self, nixpkgs, colmena, sops-nix, ... }:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      colmena,
+      sops-nix,
+      ...
+    }:
     let
       targetSystem = "aarch64-linux";
       localSystem = "x86_64-linux";
-      
+
       pkgs = import nixpkgs { system = localSystem; };
-      
+
       commonModules = [
         sops-nix.nixosModules.sops
         ./nix/modules/hardware-aws.nix
@@ -32,25 +39,26 @@
           specialArgs = { inherit self; };
         };
 
-        defaults = { ... }: {
-          imports = commonModules;
-        };
-
-        line-beeper = { name, nodes, pkgs, ... }: {
-          deployment = {
-            # targetHost is overridden via CLI: --override-input-host
-            targetHost = "OVERRIDE_VIA_CLI";
-            targetUser = "root";
-            buildOnTarget = true;  # Build on ARM target, not local x86
+        defaults =
+          { ... }:
+          {
+            imports = commonModules;
           };
-        };
-      };
 
-      # NixOS configuration (for nixos-rebuild fallback)
-      nixosConfigurations.line-beeper = nixpkgs.lib.nixosSystem {
-        system = targetSystem;
-        modules = commonModules;
-        specialArgs = { inherit self; };
+        line-beeper =
+          {
+            name,
+            nodes,
+            pkgs,
+            ...
+          }:
+          {
+            deployment = {
+              targetHost = builtins.readFile ./target-host.txt;
+              targetUser = "root";
+              buildOnTarget = true;
+            };
+          };
       };
 
       # Dev shell
