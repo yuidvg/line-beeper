@@ -20,9 +20,11 @@
     }:
     let
       targetSystem = "aarch64-linux";
-      localSystem = "x86_64-linux";
-
-      pkgs = import nixpkgs { system = localSystem; };
+      localSystems = [
+        "x86_64-linux"
+        "aarch64-darwin"
+        "x86_64-darwin"
+      ];
 
       commonModules = [
         sops-nix.nixosModules.sops
@@ -30,6 +32,30 @@
         ./nix/modules/synapse.nix
         ./nix/modules/matrix-puppeteer-line.nix
       ];
+
+      mkDevShell =
+        system:
+        let
+          pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
+          };
+        in
+        pkgs.mkShell {
+          buildInputs = with pkgs; [
+            terraform
+            awscli2
+            colmena.packages.${system}.colmena
+            sops
+            jq
+          ];
+          shellHook = ''
+            echo "LINE-Beeper dev environment"
+            echo "  make deploy  - Full deployment"
+            echo "  make infra   - Infrastructure only"
+            echo "  make nixos   - NixOS config only"
+          '';
+        };
     in
     {
       # Colmena hive - stateless deployment
@@ -61,22 +87,14 @@
           };
       };
 
-      # Dev shell
-      devShells.${localSystem}.default = pkgs.mkShell {
-        buildInputs = with pkgs; [
-          terraform
-          awscli2
-          colmena.packages.${localSystem}.colmena
-          sops
-          jq
-        ];
-
-        shellHook = ''
-          echo "LINE-Beeper dev environment"
-          echo "  make deploy  - Full deployment"
-          echo "  make infra   - Infrastructure only"
-          echo "  make nixos   - NixOS config only"
-        '';
-      };
+      # Dev shells for all supported systems
+      devShells = builtins.listToAttrs (
+        map (system: {
+          name = system;
+          value = {
+            default = mkDevShell system;
+          };
+        }) localSystems
+      );
     };
 }

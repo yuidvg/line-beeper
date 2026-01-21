@@ -2,7 +2,7 @@
 terraform/.terraform/
 terraform/*.tfstate
 terraform/*.tfstate.*
-terraform/*.tfvars
+# terraform/*.tfvars  # Now tracked - public info only (domain, zone ID, public key)
 terraform/.terraform.lock.hcl
 
 # Nix
@@ -23,3 +23,4 @@ target-host.txt
 
 # OS
 .DS_Store
+.direnv/
